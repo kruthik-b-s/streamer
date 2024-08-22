@@ -1,0 +1,1 @@
+Place the video file to be processed in this directory.
