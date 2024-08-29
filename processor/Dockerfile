@@ -4,6 +4,9 @@ FROM jrottenberg/ffmpeg:latest
 # Set the working directory inside the container
 WORKDIR /app
 
+# Install AWS CLI
+RUN apt-get update && apt-get install -y awscli
+
 # Copy the shell script into the container
 COPY process-segments.sh /app/process-segments.sh
 
