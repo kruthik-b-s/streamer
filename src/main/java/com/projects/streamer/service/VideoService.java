@@ -15,6 +15,9 @@ public class VideoService {
     @Autowired
     S3Service s3Service;
 
+    @Autowired
+    EcsService ecsService;
+
     /**
      * Uploads a video file to the aws s3.
      *
@@ -50,6 +53,9 @@ public class VideoService {
 
         // Uploads file to S3
         String fileURL = s3Service.uploadFile(file, "uploads/" + generatedFileName);
+
+        // ECS
+        ecsService.runContainer("");
 
         log.info("File {} uploaded successfully with name {}", file.getOriginalFilename(), generatedFileName);
         return "File " + file.getOriginalFilename() + " uploaded successfully. Can be accessed through " + fileURL;

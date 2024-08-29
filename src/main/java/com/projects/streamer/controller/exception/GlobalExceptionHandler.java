@@ -1,5 +1,6 @@
 package com.projects.streamer.controller.exception;
 
+import com.amazonaws.services.ecs.model.InvalidParameterException;
 import com.projects.streamer.response.GlobalResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -12,7 +13,7 @@ import org.springframework.web.context.request.WebRequest;
 @Slf4j
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler({ FileUploadException.class, InternalError.class })
+    @ExceptionHandler({ FileUploadException.class, InternalError.class, InvalidParameterException.class})
     public final ResponseEntity<GlobalResponse> handleException(Exception ex, WebRequest request) {
         if (ex instanceof FileUploadException) {
             GlobalResponse response = GlobalResponse.builder()
