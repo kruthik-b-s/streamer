@@ -1,6 +1,8 @@
 package com.projects.streamer.service;
 
 import com.projects.streamer.controller.exception.FileUploadException;
+import com.projects.streamer.entity.Video;
+import com.projects.streamer.repository.VideoRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -18,30 +20,19 @@ public class VideoService {
     @Autowired
     EcsService ecsService;
 
-    /**
-     * Uploads a video file to the aws s3.
-     *
-     * <p>This method uploads the provided {@link MultipartFile} to s3 bucket.
-     * It generates a new filename for the file and attempts to write it to the specified s3 bucket.
-     * If the file is empty or if writing the file fails, it throws a {@link FileUploadException}.</p>
-     *
-     * @param file The {@link MultipartFile} object representing the video file to be uploaded.
-     * @return A {@link String} message indicating the success of the file upload.
-     * @throws FileUploadException If the file is empty or if there is an error during the file upload process.
-     * @throws IOException If an I/O error occurs while writing the file to S3.
-     */
+    @Autowired
+    VideoRepository videoRepository;
+
     public String uploadVideoFile(MultipartFile file) throws FileUploadException, IOException {
         if (file.isEmpty()) {
             log.error("Uploaded empty file");
             throw new FileUploadException();
         }
 
+        log.info("Generating file name...");
         String generatedFileName = generateFileName(file.getOriginalFilename());
 
         /*
-        * Uncomment this code to use local uploads directory for file uploading.
-        * Create an uploads directory before execution
-        *
         * ClassPathResource resource = new ClassPathResource("uploads/");
         * long bytesWritten = Files.copy(file.getInputStream(), Path.of(resource.getPath() + generatedFileName));
         *
@@ -51,27 +42,27 @@ public class VideoService {
         * }
         */
 
-        // Uploads file to S3
         String fileURL = s3Service.uploadFile(file, "uploads/" + generatedFileName);
-
-        // ECS
-        ecsService.runContainer("");
+        // TODO: retry logic in case of failure
+        ecsService.handleContainer(generatedFileName);
+        // TODO: execute based on the task status
+        createVideoRecord(file, generatedFileName);
 
         log.info("File {} uploaded successfully with name {}", file.getOriginalFilename(), generatedFileName);
-        return "File " + file.getOriginalFilename() + " uploaded successfully. Can be accessed through " + fileURL;
+        return "File " + file.getOriginalFilename() + " uploaded successfully.";
     }
 
-    /**
-     * Generates a new filename based on the current timestamp and the original filename.
-     *
-     * <p>The generated filename consists of the current epoch second timestamp followed by the original filename,
-     * separated by an underscore. This ensures that each file has a unique name based on the time it was processed.</p>
-     *
-     * @param originalFilename The original name of the file to be included in the generated filename.
-     * @return A {@link String} representing the new filename that includes a timestamp and the original filename.
-     */
     private String generateFileName(String originalFilename) {
         return Instant.now().getEpochSecond() + "_" + originalFilename;
+    }
+
+    private void createVideoRecord(MultipartFile file, String generatedFileName) {
+        Video video = new Video();
+        video.setFileName(generatedFileName);
+        video.setFileType(file.getContentType());
+        log.info("Creating a record for the uploaded file in database...");
+        // TODO: check for entity manager sessions (getting error prepared statement s_1 already exist)
+        videoRepository.save(video);
     }
 
 }

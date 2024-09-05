@@ -25,10 +25,12 @@ public class S3Service {
     public String uploadFile(MultipartFile file, String fileName) throws IOException, FileUploadException {
         byte[] byteFile = file.getBytes();
 
+        log.info("Setting up metadata for put object request to S3");
         ObjectMetadata metadata = new ObjectMetadata();
         metadata.setContentLength(byteFile.length);
         metadata.setContentType("video/mp4");
 
+        log.info("Converting the multipart file to byte stream");
         ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(byteFile);
         PutObjectResult fileUploadResult = s3Service.putObject(bucket, fileName, byteArrayInputStream, metadata);
 

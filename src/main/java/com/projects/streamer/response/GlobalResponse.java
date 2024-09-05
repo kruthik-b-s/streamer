@@ -4,5 +4,4 @@ import lombok.Builder;
 import org.springframework.http.HttpStatus;
 
 @Builder
-public record GlobalResponse(HttpStatus statusCode, String message) {
-}
+public record GlobalResponse(HttpStatus statusCode, String message) { }

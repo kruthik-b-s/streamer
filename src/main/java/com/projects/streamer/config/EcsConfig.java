@@ -18,7 +18,7 @@ public class EcsConfig {
     @Value("${s3.secret}")
     private String secret;
 
-    @Value("${ecs.region}")
+    @Value("${aws.region}")
     private String region;
 
     @Bean
