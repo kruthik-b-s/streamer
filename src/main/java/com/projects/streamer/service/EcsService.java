@@ -2,10 +2,16 @@ package com.projects.streamer.service;
 
 import com.amazonaws.services.ecs.AmazonECS;
 import com.amazonaws.services.ecs.model.*;
+import com.amazonaws.services.logs.AWSLogs;
+import com.amazonaws.services.logs.model.GetLogEventsRequest;
+import com.amazonaws.services.logs.model.GetLogEventsResult;
+import com.amazonaws.services.logs.model.OutputLogEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
+import java.util.List;
 
 @Service
 @Slf4j
@@ -44,7 +50,10 @@ public class EcsService {
     @Autowired
     private AmazonECS amazonECS;
 
-    public void handleContainer(String videoFileName) {
+    @Autowired
+    private AWSLogs logsClient;
+
+    public String handleContainer(String videoFileName) {
         log.info("Setting up the container override with commands and environment variables");
         ContainerOverride containerOverride = new ContainerOverride()
                 .withName(containerName)
@@ -68,9 +77,34 @@ public class EcsService {
                                 .withAssignPublicIp(AssignPublicIp.ENABLED)));
 
         RunTaskResult runTaskResult = amazonECS.runTask(runTaskRequest);
-        log.info("Started the ECS task with ARN: {}", runTaskResult.getTasks().getFirst().getTaskArn());
-        // TODO: return some useful data
-        System.out.println("Task ARN: " + runTaskResult.getTasks().getFirst().getTaskArn());
+        String taskArn = runTaskResult.getTasks().getFirst().getTaskArn();
+        log.info("Started the ECS task with ARN: {}", taskArn);
+        return taskArn;
+    }
+
+    public Flux<String> streamLogs(String taskArn) {
+        String logGroupName = "/ecs/" + taskDefinition;
+        String logStreamName = getLogStreamName(taskArn);
+
+        return Flux.create(sink -> {
+            GetLogEventsRequest logEventsRequest = new GetLogEventsRequest()
+                    .withLogGroupName(logGroupName)
+                    .withLogStreamName(logStreamName);
+
+            GetLogEventsResult logEventsResult = logsClient.getLogEvents(logEventsRequest);
+            List<OutputLogEvent> events = logEventsResult.getEvents();
+
+            for (OutputLogEvent event : events) {
+                sink.next(event.getMessage());
+            }
+
+            log.info("Flushed the log to response");
+            sink.complete();
+        });
+    }
+
+    private String getLogStreamName(String taskArn) {
+        return "ecs/" + containerName + "/" + taskArn.substring(taskArn.lastIndexOf('/') + 1);
     }
 
 }

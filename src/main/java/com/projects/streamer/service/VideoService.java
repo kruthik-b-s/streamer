@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -23,7 +25,7 @@ public class VideoService {
     @Autowired
     VideoRepository videoRepository;
 
-    public String uploadVideoFile(MultipartFile file) throws FileUploadException, IOException {
+    public Map<String, String> uploadVideoFile(MultipartFile file) throws FileUploadException, IOException {
         if (file.isEmpty()) {
             log.error("Uploaded empty file");
             throw new FileUploadException();
@@ -43,13 +45,16 @@ public class VideoService {
         */
 
         String fileURL = s3Service.uploadFile(file, "uploads/" + generatedFileName);
-        // TODO: retry logic in case of failure
-        ecsService.handleContainer(generatedFileName);
+        String taskArn = ecsService.handleContainer(generatedFileName);
         // TODO: execute based on the task status
         createVideoRecord(file, generatedFileName);
 
         log.info("File {} uploaded successfully with name {}", file.getOriginalFilename(), generatedFileName);
-        return "File " + file.getOriginalFilename() + " uploaded successfully.";
+
+        Map<String, String> response = new HashMap<>();
+        response.put("taskArn", taskArn);
+        response.put("url", fileURL);
+        return response;
     }
 
     private String generateFileName(String originalFilename) {
